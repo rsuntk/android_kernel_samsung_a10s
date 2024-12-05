@@ -22,8 +22,6 @@ mounts-$(CONFIG_BLK_DEV_INITRD)	+= do_mounts_initrd.o
 mounts-$(CONFIG_BLK_DEV_MD)	+= do_mounts_md.o
 mounts-$(CONFIG_BLK_DEV_DM)	+= do_mounts_dm.o
 
-obj-$(CONFIG_ANDROID_SAR_RAMDISK) += ramdisk/
-
 # dependencies on generated files need to be listed explicitly
 $(obj)/version.o: include/generated/compile.h
 
