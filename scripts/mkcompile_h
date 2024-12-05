@@ -35,8 +35,7 @@ else
 fi
 
 if [ -z "$KBUILD_BUILD_TIMESTAMP" ]; then
-	# Rissu: make it as numeric
-	TIMESTAMP=`date +'%c %:::z'`
+	TIMESTAMP=`date`
 else
 	TIMESTAMP=$KBUILD_BUILD_TIMESTAMP
 fi
