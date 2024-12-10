@@ -153,14 +153,15 @@ post_build() {
 		if [ ! -z $DEVICE ]; then
 			DEVICE_MODEL="-`echo $DEVICE`"
 		fi
-  	    linux_version=$(make kernelversion)
+  	    	linux_version=$(make kernelversion)
 		echo "- Creating AnyKernel3"
 		gcc -CC utsrelease.c -o getutsrel
-        UTSRELEASE=$(./getutsrel)
+        	UTSRELEASE=$(./getutsrel)
 		sed -i "s/kernel\.string=.*/kernel.string=$UTSRELEASE/" "$(pwd)/AnyKernel3/anykernel.sh"
-        cp $IMAGE $AK3
-		zip -r9 ../AnyKernel3-`echo $linux_version``echo $DEVICE_MODEL`_`echo $DATE`.zip *
-		if [ $IS_CI != "true" ]; then
+	        cp $IMAGE $AK3
+		cd $AK3 && zip -r9 ../AnyKernel3-`echo $linux_version``echo $DEVICE_MODEL`_`echo $DATE`.zip *
+		cd ..
+  		if [ $IS_CI != "true" ]; then
 			echo "- Host is not Automated CI, cleaning dirs"
 			rm $AK3/Image && rm getutsrel && rm utsrelease.c
 		fi
