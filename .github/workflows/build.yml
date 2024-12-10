@@ -54,21 +54,6 @@ jobs:
         export BUILD_START=$(date)
         export IS_CI=true
         export LLVM=1
-
-        # do some checks
-        echo ""
-        echo ====================================================
-        echo CROSS_COMPILE=$CROSS_COMPILE
-        echo LINUX_VERSION=`make kernelversion`
-        echo DEFCONFIG="$DEFCONFIG"
-        echo CLANG="`clang -v 2>&1 | grep ' version ' | sed 's/[[:space:]]*$//'`"
-        echo CLANG_TRIPLE=$CLANG_TRIPLE
-        echo KBUILD_BUILD_USER=$KBUILD_BUILD_USER
-        echo KBUILD_BUILD_HOST=$KBUILD_BUILD_HOST
-        echo CURRENT_DIR=$(pwd)
-        echo DATE=`date`
-        echo ====================================================
-        echo ""
         
         if [[ "${{ github.event.inputs.SETUP_KSU }}" = "true" ]]; then 
           export KERNELSU=true
