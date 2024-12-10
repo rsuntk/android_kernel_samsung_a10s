@@ -29,13 +29,8 @@
 #include <linux/inetdevice.h>
 #include <linux/string.h>
 
-#include "fw_log_wifi.h"
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-#include "wifi_pwr_on.h"
-#else
 #include "wmt_exp.h"
 #include "stp_exp.h"
-#endif
 MODULE_LICENSE("Dual BSD/GPL");
 
 #define WIFI_DRIVER_NAME "mtk_wmt_wifi_chrdev"
@@ -49,6 +44,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 
 uint32_t gDbgLevel = WIFI_LOG_DBG;
 
+#ifdef CONFIG_MTK_CONNECTIVITY_LOG
 #define WIFI_DBG_FUNC(fmt, arg...)	\
 	do { \
 		if (gDbgLevel >= WIFI_LOG_DBG) \
@@ -74,6 +70,13 @@ uint32_t gDbgLevel = WIFI_LOG_DBG;
 		if (gDbgLevel >= WIFI_LOG_ERR) \
 			pr_info(PFX "%s[E]: " fmt, __func__, ##arg); \
 	} while (0)
+#else
+#define WIFI_DBG_FUNC(fmt, arg...)
+#define WIFI_INFO_FUNC(fmt, arg...)
+#define WIFI_INFO_FUNC_LIMITED(fmt, arg...)
+#define WIFI_WARN_FUNC(fmt, arg...)
+#define WIFI_ERR_FUNC(fmt, arg...)
+#endif
 
 #define VERSION "2.0"
 
@@ -104,11 +107,6 @@ static int32_t isconcurrent;
 static char *ifname = WLAN_IFACE_NAME;
 static uint32_t driver_loaded;
 static int32_t low_latency_mode;
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-static uint8_t  driver_resetting;
-static uint8_t  write_processing;
-static uint8_t  pre_cal_ongoing;
-#endif
 /*******************************************************************
  */
 enum ENUM_RESET_STATUS {
@@ -175,39 +173,6 @@ uint32_t get_low_latency_mode(void)
 	return low_latency_mode;
 }
 EXPORT_SYMBOL(get_low_latency_mode);
-
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-void update_driver_reset_status(uint8_t fgIsResetting)
-{
-	WIFI_INFO_FUNC("update_driver_reset_status: %d\n", fgIsResetting);
-	driver_resetting = fgIsResetting;
-}
-EXPORT_SYMBOL(update_driver_reset_status);
-int32_t get_wifi_powered_status(void)
-{
-	WIFI_INFO_FUNC("wifi power status : %d\n", powered);
-	return powered;
-}
-EXPORT_SYMBOL(get_wifi_powered_status);
-int32_t get_wifi_process_status(void)
-{
-	WIFI_INFO_FUNC("wifi write status: %d\n", write_processing);
-	return write_processing;
-}
-EXPORT_SYMBOL(get_wifi_process_status);
-void update_pre_cal_status(uint8_t fgIsPreCal)
-{
-	WIFI_INFO_FUNC("update_pre_cal_status: %d\n", fgIsPreCal);
-	pre_cal_ongoing = fgIsPreCal;
-}
-EXPORT_SYMBOL(update_pre_cal_status);
-uint8_t get_pre_cal_status(void)
-{
-	WIFI_INFO_FUNC("pre cal status: %d\n", pre_cal_ongoing);
-	return pre_cal_ongoing;
-}
-EXPORT_SYMBOL(get_pre_cal_status);
-#endif
 
 enum ENUM_WLAN_DRV_BUF_TYPE_T {
 	BUF_TYPE_NVRAM,
@@ -295,17 +260,7 @@ int32_t wifi_reset_end(enum ENUM_RESET_STATUS status)
 
 		if (powered == 1) {
 			/* WIFI is on before whole chip reset, reopen it now */
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-			/*
-			 * mtk_wland_thread_main will check this flag for current state.
-			 * if this flag is TRUE, mtk_wland_thread_main will not do power on again.
-			 * Set this flag to FALSE to finish the reset procedure
-			 */
-			g_fgIsWiFiOn = MTK_WCN_BOOL_FALSE;
-			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
-#else
 			if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
 				WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
 				goto done;
 			} else {
@@ -401,12 +356,6 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 		WIFI_ERR_FUNC("WIFI_write invalid param\n");
 		goto done;
 	}
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-	if (driver_resetting == 1) {
-		WIFI_ERR_FUNC("Wi-Fi is resetting\n");
-		goto done;
-	}
-#endif
 	copy_size = min(sizeof(local) - 1, count);
 	if (copy_size < 0) {
 		WIFI_ERR_FUNC("Invalid copy_size: %d\n", copy_size);
@@ -418,9 +367,6 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 			local, count, copy_size);
 
 		if (local[0] == '0') {
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-			write_processing = 1;
-#endif
 			if (powered == 0) {
 				WIFI_INFO_FUNC("WIFI is already power off!\n");
 				retval = count;
@@ -447,11 +393,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				netdev = NULL;
 			}
 
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_OFF) == MTK_WCN_BOOL_FALSE) {
-#else
 			if (mtk_wcn_wmt_func_off(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
 				WIFI_ERR_FUNC("WMT turn off WIFI fail!\n");
 			} else {
 				WIFI_INFO_FUNC("WMT turn off WIFI success!\n");
@@ -460,19 +402,12 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 				wlan_mode = WLAN_MODE_HALT;
 			}
 		} else if (local[0] == '1') {
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-			write_processing = 1;
-#endif
 			if (powered == 1) {
 				WIFI_INFO_FUNC("WIFI is already power on!\n");
 				retval = count;
 				goto done;
 			}
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-			if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
-#else
 			if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
 				WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
 			} else {
 				powered = 1;
@@ -541,11 +476,7 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 
 			if (powered == 0) {
 				/* If WIFI is off, turn on WIFI first */
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-				if (mtk_wcn_wlan_func_ctrl(WLAN_OPID_FUNC_ON) == MTK_WCN_BOOL_FALSE) {
-#else
 				if (mtk_wcn_wmt_func_on(WMTDRV_TYPE_WIFI) == MTK_WCN_BOOL_FALSE) {
-#endif
 					WIFI_ERR_FUNC("WMT turn on WIFI fail!\n");
 					goto done;
 				} else {
@@ -683,9 +614,6 @@ ssize_t WIFI_write(struct file *filp, const char __user *buf, size_t count, loff
 done:
 	if (netdev != NULL)
 		dev_put(netdev);
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-	write_processing = 0;
-#endif
 	up(&wr_mtx);
 	return retval;
 }
@@ -738,16 +666,6 @@ static int WIFI_init(void)
 
 	WIFI_INFO_FUNC("%s driver(major %d %d) installed.\n", WIFI_DRIVER_NAME,
 			WIFI_major, MAJOR(wifi_devno));
-
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	if (fw_log_wifi_init() < 0) {
-		WIFI_INFO_FUNC("connsys debug node init failed!!\n");
-		goto error;
-	}
-#endif
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-	wifi_pwr_on_init();
-#endif
 	return 0;
 
 error:
@@ -787,16 +705,7 @@ static void WIFI_exit(void)
 	unregister_chrdev_region(wifi_devno, WIFI_devs);
 
 	WIFI_INFO_FUNC("%s driver removed\n", WIFI_DRIVER_NAME);
-
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	fw_log_wifi_deinit();
-#endif
-#if (CFG_ANDORID_CONNINFRA_SUPPORT == 1)
-	wifi_pwr_on_deinit();
-#endif
 }
-
-#ifdef MTK_WCN_BUILT_IN_DRIVER
 
 int mtk_wcn_wmt_wifi_init(void)
 {
@@ -809,10 +718,3 @@ void mtk_wcn_wmt_wifi_exit(void)
 	return WIFI_exit();
 }
 EXPORT_SYMBOL(mtk_wcn_wmt_wifi_exit);
-
-#else
-
-module_init(WIFI_init);
-module_exit(WIFI_exit);
-
-#endif

@@ -363,11 +363,14 @@ enum WAKE_DATA_TYPE {
  *    #define DEBUGFUNC(_Func) static const char __FUNCTION__[] = _Func;
  * #endif
  */
-#if DBG_DISABLE_ALL_LOG
-#define DBGLOG(_Module, _Class, _Fmt)
-#define DBGLOG_LIMITED(_Module, _Class, _Fmt)
-#define DBGLOG_MEM8(_Module, _Class, _StartAddr, _Length)
-#define DBGLOG_MEM32(_Module, _Class, _StartAddr, _Length)
+
+#ifndef CONFIG_MTK_CONNECTIVITY_LOG
+#define DBGLOG(_Mod, _Clz, _Fmt, ...)
+#define DBGLOG_LIMITED(_Mod, _Clz, _Fmt, ...)
+#define DBGFWLOG(_Mod, _Clz, _Fmt, ...)
+#define TOOL_PRINTLOG(_Mod, _Clz, _Fmt, ...)
+#define DBGLOG_MEM8(_Mod, _Clz, _Adr, _Len)
+#define DBGLOG_MEM32(_Mod, _Clz, _Adr, _Len)
 #else
 #define DBGLOG(_Mod, _Clz, _Fmt, ...) \
 	do { \

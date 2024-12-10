@@ -108,13 +108,6 @@
 #define MTK_WCN_HIF_AXI			0
 #endif
 
-
-
-/* Android build-in driver switch, Mike 2016/11/11*/
-#ifndef CFG_BUILT_IN_DRIVER
-#define CFG_BUILT_IN_DRIVER         1 /* fixup! Fix error duplicated symbols */
-#endif
-
 /* Mike 2016/09/01 ALPS update K3.18 80211_disconnect to K4.4 version*/
 /* work around for any alps K3.18 platform*/
 #ifndef CFG_WPS_DISCONNECT
@@ -725,10 +718,6 @@
 #define CFG_TEST_ANDROID_DIRECT_GO              0
 
 #define CFG_UNITEST_P2P                         0
-
-#ifndef CONFIG_WLAN_DRV_BUILD_IN
-#define CONFIG_WLAN_DRV_BUILD_IN		1
-#endif
 
 /*
  * Enable cfg80211 option after Android 2.2(Froyo) is suggested,

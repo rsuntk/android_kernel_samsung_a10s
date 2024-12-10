@@ -283,12 +283,6 @@ extern const struct ieee80211_iface_combination
 extern const int32_t mtk_iface_combinations_p2p_num;
 extern uint8_t g_aucNvram[];
 
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-typedef void (*wifi_fwlog_event_func_cb)(int, int);
-/* adaptor ko */
-extern int  wifi_fwlog_onoff_status(void);
-extern void wifi_fwlog_event_func_register(wifi_fwlog_event_func_cb pfFwlog);
-#endif
 #if CFG_MTK_ANDROID_WMT
 extern void update_driver_loaded_status(uint8_t loaded);
 #endif

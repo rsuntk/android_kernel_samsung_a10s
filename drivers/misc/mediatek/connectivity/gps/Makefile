@@ -15,9 +15,6 @@ MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
 MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
 ifeq ($(CONFIG_MTK_GPS_SUPPORT), y)
 
-ifndef TOP
-    TOP := $(srctree)/..
-endif
 ifeq ($(TARGET_BUILD_VARIANT),$(filter $(TARGET_BUILD_VARIANT),userdebug user))
     ldflags-y += -s
 endif
@@ -187,9 +184,6 @@ ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/include
 ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/linux/include
 ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/core/include
 ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/platform/include
-ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-ccflags-y += -I$(WMT_SRC_FOLDER)/debug_utility
-endif
 ifeq ($(GPS_DRV_CONTROL_LNA),y)
 ccflags-y += -I$(GPS_SRC_FOLDER)/lna_ctrl/inc
 endif
@@ -210,9 +204,6 @@ endif
 endif
 ifneq ($(CONFIG_MTK_GPS_EMI),)
 $(MODULE_NAME)-objs += gps_emi.o
-endif
-ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-$(MODULE_NAME)-objs += fw_log_gps.o
 endif
 
 endif

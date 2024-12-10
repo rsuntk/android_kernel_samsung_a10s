@@ -18,14 +18,10 @@ ccflags-y += -I/usr/include/
 ccflags-y += -DCFG_VIRTUAL_OS
 ccflags-y += -DCFG_REMIND_IMPLEMENT
 endif
-
-ifndef TOP
-    TOP := $(srctree)/..
-endif
-$(info os option: $(os))
 # ---------------------------------------------------
 # ALPS Setting
 # ---------------------------------------------------
+
 ifeq ($(KBUILD_MODPOST_FAIL_ON_WARNINGS),)
     # Force build fail on modpost warning
     KBUILD_MODPOST_FAIL_ON_WARNINGS=y
@@ -65,7 +61,7 @@ ccflags-y += -DWLAN_INCLUDE_PROC
 ccflags-y += -DCFG_SUPPORT_AGPS_ASSIST=0
 ccflags-y += -DCFG_SUPPORT_TSF_USING_BOOTTIME=1
 ccflags-y += -DARP_MONITER_ENABLE=1
-ccflags-y += -Wno-error
+ccflags-y += -Werror
 #ccflags-y:=$(filter-out -U$(WLAN_CHIP_ID),$(ccflags-y))
 #ccflags-y += -DLINUX -D$(WLAN_CHIP_ID)
 #workaround: also needed for none LINUX system
@@ -207,17 +203,6 @@ ifeq ($(CONFIG_MTK_WIFI_CONNINFRA_SUPPORT), y)
     ccflags-y += -DCFG_SUPPORT_PRE_ON_PHY_ACTION=1
     ccflags-y += -I$(TOP)/conninfra/include
     ccflags-y += -DCFG_ANDORID_CONNINFRA_COREDUMP_SUPPORT=1
-    ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-        ccflags-y += -I$(TOP)/conninfra/include
-        ccflags-y += -I$(TOP)/conninfra/platform/include
-        ccflags-y += -I$(TOP)/conninfra/base/include
-        ccflags-y += -I$(TOP)/conninfra/debug_utility
-        ccflags-y += -I$(TOP)/conninfra/debug_utility/include
-        ccflags-y += -I$(TOP)/conninfra/debug_utility/connsyslog
-        ccflags-y += -I$(TOP)/conninfra/debug_utility/coredump
-        ccflags-y += -I$(TOP)/conninfra/debug_utility/coredump/platform/include
-        ccflags-y += -I$(TOP)/wlan/adaptor
-    endif
 else
     ccflags-y += -DCFG_SUPPORT_CONNINFRA=0
     ccflags-y += -DCFG_ANDORID_CONNINFRA_COREDUMP_SUPPORT=0
@@ -244,12 +229,6 @@ ifneq ($(WIFI_IP_SET),)
     ccflags-y += -DCFG_WIFI_IP_SET=$(WIFI_IP_SET)
 else
     ccflags-y += -DCFG_WIFI_IP_SET=1
-endif
-
-ifeq ($(CONFIG_WLAN_DRV_BUILD_IN),y)
-	ccflags-y += -DCFG_BUILT_IN_DRIVER=1
-else
-	ccflags-y += -DCFG_BUILT_IN_DRIVER=0
 endif
 
 ifneq ($(findstring UT_TEST_MODE,$(MTK_COMBO_CHIP)),)
@@ -420,15 +399,7 @@ obj-$(CONFIG_MTK_COMBO_WIFI) += $(MODULE_NAME).o
 #obj-y += $(MODULE_NAME).o
 endif
 
-ifeq ($(CONFIG_WLAN_DRV_BUILD_IN),y)
-$(warning $(MODULE_NAME) build-in boot.img)
 obj-y += $(MODULE_NAME).o
-ccflags-y += -DCONFIG_WLAN_DRV_BUILD_IN=1
-else
-$(warning $(MODULE_NAME) is kernel module)
-obj-m += $(MODULE_NAME).o
-ccflags-y += -DCONFIG_WLAN_DRV_BUILD_IN=0
-endif
 
 ifneq ($(filter yes,$(MTK_TC10_IN_HOUSE)),)
 ccflags-y += -DMTK_TC10_IN_HOUSE

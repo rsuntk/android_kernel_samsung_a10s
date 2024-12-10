@@ -4,11 +4,6 @@ MTK_PLATFORM := $(subst ",,$(CONFIG_MTK_PLATFORM))
 
 ###############################################################################
 # Necessary Check
-
-ifndef TOP
-    TOP := $(srctree)/..
-endif
-
 ifneq ($(CFG_BT_PM_QOS_CONTROL),)
     $(warning set PM_QOS_CONTROL=1)
     ccflags-y += -D PM_QOS_CONTROL=1
@@ -38,9 +33,6 @@ endif
 WMT_SRC_FOLDER := $(TOP)/common
 ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/include
 ccflags-y += -I$(WMT_SRC_FOLDER)/common_main/linux/include
-ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-ccflags-y += -I$(WMT_SRC_FOLDER)/debug_utility
-endif
 
 ###############################################################################
 
@@ -49,8 +41,4 @@ obj-y += $(MODULE_NAME).o
 
 ccflags-y += -D CREATE_NODE_DYNAMIC=1
 
-$(MODULE_NAME)-objs += stp_chrdev_bt.o
-$(MODULE_NAME)-objs += dbg_bt.o
-ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-$(MODULE_NAME)-objs += fw_log_bt.o
-endif
+$(MODULE_NAME)-objs += stp_chrdev_bt.o dbg_bt.o

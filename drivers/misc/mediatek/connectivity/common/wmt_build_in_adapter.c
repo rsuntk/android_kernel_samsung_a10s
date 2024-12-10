@@ -27,6 +27,7 @@
  ******************************************************************************/
 static unsigned int gConnAdpDbgLvl = CONNADP_LOG_INFO;
 
+#ifdef CONFIG_MTK_CONNECTIVITY_LOG
 #define CONNADP_LOUD_FUNC(fmt, arg...) \
 do { \
 	if (gConnAdpDbgLvl >= CONNADP_LOG_LOUD) \
@@ -52,7 +53,13 @@ do { \
 	if (gConnAdpDbgLvl >= CONNADP_LOG_ERR) \
 		pr_info("[E]%s(%d):"  fmt, __func__, __LINE__, ##arg); \
 } while (0)
-
+#else
+#define CONNADP_LOUD_FUNC(fmt, arg...)
+#define CONNADP_DBG_FUNC(fmt, arg...)
+#define CONNADP_INFO_FUNC(fmt, arg...)
+#define CONNADP_WARN_FUNC(fmt, arg...)
+#define CONNADP_ERR_FUNC(fmt, arg...)
+#endif
 
 /*******************************************************************************
  * Bridging from platform -> wmt_drv.ko

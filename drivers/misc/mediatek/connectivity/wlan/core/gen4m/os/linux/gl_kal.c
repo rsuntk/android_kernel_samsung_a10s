@@ -207,34 +207,6 @@ uint8_t *apucCorDumpCr4FileName = "/tmp/FW_DUMP_Cr4";
 #endif
 #endif
 
-#if !CONFIG_WLAN_DRV_BUILD_IN
-/*----------------------------------------------------------------------------*/
-/*!
- * \brief  To leverage systrace, use the same name, i.e. tracing_mark_write,
- *         which ftrace would write when systrace writes msg to
- *         /sys/kernel/debug/tracing/trace_marker with trace_options enabling
- *         print-parent
- *
- */
-/*----------------------------------------------------------------------------*/
-void tracing_mark_write(const char *fmt, ...)
-{
-	const uint32_t BUFFER_SIZE = 1024;
-	va_list ap;
-	char buf[BUFFER_SIZE];
-
-	if ((aucDebugModule[DBG_TRACE_IDX] & DBG_CLASS_TEMP) == 0)
-		return;
-
-	va_start(ap, fmt);
-	vsnprintf(buf, BUFFER_SIZE, fmt, ap);
-	buf[BUFFER_SIZE - 1] = '\0';
-	va_end(ap);
-
-	trace_printk("%s", buf);
-}
-#endif
-
 /*----------------------------------------------------------------------------*/
 /*!
  * \brief This function is provided by GLUE Layer for internal driver stack to

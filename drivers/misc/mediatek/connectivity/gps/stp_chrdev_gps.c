@@ -73,6 +73,7 @@ MODULE_LICENSE("GPL");
 
 static UINT32 gDbgLevel = GPS_LOG_DBG;
 
+#ifdef CONFIG_MTK_CONNECTIVITY_LOG
 #define GPS_DBG_FUNC(fmt, arg...)	\
 do { if (gDbgLevel >= GPS_LOG_DBG)	\
 		pr_debug(PFX "[D]%s: "  fmt, __func__, ##arg);	\
@@ -93,9 +94,12 @@ do { if (gDbgLevel >= GPS_LOG_ERR)	\
 do { if (gDbgLevel >= GPS_LOG_DBG)	\
 		pr_info(PFX "<%s> <%d>\n", __func__, __LINE__);	\
 } while (0)
-
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-bool fgGps_fwlog_on;
+#else
+#define GPS_DBG_FUNC(fmt, arg...)
+#define GPS_INFO_FUNC(fmt, arg...)
+#define GPS_WARN_FUNC(fmt, arg...)
+#define GPS_ERR_FUNC(fmt, arg...)
+#define GPS_TRC_FUNC(f)
 #endif
 
 #ifdef GPS_FWCTL_SUPPORT
@@ -675,13 +679,6 @@ static int GPS_hw_resume(UINT8 mode)
 
 void GPS_fwlog_ctrl(bool on)
 {
-#if (defined(GPS_FWCTL_SUPPORT) && defined(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH))
-	down(&fwctl_mtx);
-	if (fgGps_fwctl_ready)
-		GPS_reference_count(FWLOG_CTRL_INNER, on, GPS_USER1);
-	fgGps_fwlog_on = on;
-	up(&fwctl_mtx);
-#endif
 }
 
 /* block until wmt reset happen or GPS_close */
@@ -1045,12 +1042,6 @@ static int GPS_open(struct inode *inode, struct file *file)
 #ifdef GPS_FWCTL_SUPPORT
 	down(&fwctl_mtx);
 	GPS_reference_count(FGGPS_FWCTL_EADY, true, GPS_USER1);
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	if (fgGps_fwlog_on) {
-		/* GPS fw clear log on flag when GPS on, no need to send it if log setting is off */
-		GPS_reference_count(FWLOG_CTRL_INNER, fgGps_fwlog_on, GPS_USER1);
-	}
-#endif
 	up(&fwctl_mtx);
 #endif /* GPS_FWCTL_SUPPORT */
 
@@ -1301,36 +1292,6 @@ void mtk_wcn_stpgps_drv_exit(void)
 	return GPS_exit();
 }
 EXPORT_SYMBOL(mtk_wcn_stpgps_drv_exit);
-
-/*****************************************************************************/
-static int __init gps_mod_init(void)
-{
-	int ret = 0;
-
-	mtk_wcn_stpgps_drv_init();
-	#ifdef CONFIG_MTK_GPS_EMI
-	mtk_gps_emi_init();
-	#endif
-	#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	mtk_gps_fw_log_init();
-	#endif
-	return ret;
-}
-
-/*****************************************************************************/
-static void __exit gps_mod_exit(void)
-{
-	mtk_wcn_stpgps_drv_exit();
-	#ifdef CONFIG_MTK_GPS_EMI
-	mtk_gps_emi_exit();
-	#endif
-	#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	mtk_gps_fw_log_exit();
-	#endif
-}
-
-module_init(gps_mod_init);
-module_exit(gps_mod_exit);
 
 int reference_count_bitmap[2] = {0};
 void GPS_reference_count(enum gps_reference_count_cmd cmd, bool flag, int user)

@@ -259,9 +259,6 @@ $(MODULE_NAME)-objs += common_main/linux/wmt_user_proc.o
 $(MODULE_NAME)-objs += common_main/linux/wmt_proc_dbg.o
 $(MODULE_NAME)-objs += common_main/linux/wmt_alarm.o
 
-ifneq ($(CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH),)
-$(MODULE_NAME)-objs += common_main/linux/fw_log_wmt.o
-endif
 $(MODULE_NAME)-objs += common_main/linux/wmt_step.o
 
 ifeq ($(CONFIG_MTK_BTIF),$(filter $(CONFIG_MTK_BTIF),y m))

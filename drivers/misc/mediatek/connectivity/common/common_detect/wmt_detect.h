@@ -34,11 +34,6 @@
 *                              C O N S T A N T S
 ********************************************************************************
 */
-#ifdef MTK_WCN_REMOVE_KERNEL_MODULE
-#define MTK_WCN_REMOVE_KO 1
-#else
-#define MTK_WCN_REMOVE_KO 0
-#endif
 
 #include "sdio_detect.h"
 #include "wmt_detect_pwr.h"
@@ -52,6 +47,7 @@
 
 extern int gWmtDetectDbgLvl;
 
+#ifdef CONFIG_MTK_CONNECTIVITY_LOG
 #define WMT_DETECT_PR_LOUD(fmt, arg...) \
 do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_LOUD) \
@@ -77,6 +73,13 @@ do { \
 	if (gWmtDetectDbgLvl >= WMT_DETECT_LOG_ERR) \
 		pr_err(DFT_TAG"[E]%s(%d):"  fmt, __func__, __LINE__, ##arg); \
 } while (0)
+#else
+#define WMT_DETECT_PR_LOUD(fmt, arg...)
+#define WMT_DETECT_PR_DBG(fmt, arg...)
+#define WMT_DETECT_PR_INFO(fmt, arg...)
+#define WMT_DETECT_PR_WARN(fmt, arg...)
+#define WMT_DETECT_PR_ERR(fmt, arg...)
+#endif
 
 #define WMT_DETECT_IOC_MAGIC            'w'
 #define COMBO_IOCTL_GET_CHIP_ID       _IOR(WMT_DETECT_IOC_MAGIC, 0, int)

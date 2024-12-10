@@ -212,9 +212,6 @@ static VOID bt_cdev_rst_cb(ENUM_WMTDRV_TYPE_T src,
 	if ((src == WMTDRV_TYPE_WMT) && (dst == WMTDRV_TYPE_BT) && (type == WMTMSG_TYPE_RESET)) {
 		switch (rst_msg) {
 		case WMTRSTMSG_RESET_START:
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-			bt_state_notify(OFF);
-#endif
 			BT_LOG_PRT_INFO("Whole chip reset start!\n");
 			rstflag = 1;
 			break;
@@ -642,9 +639,6 @@ static int BT_open(struct inode *inode, struct file *file)
 	sema_init(&wr_mtx, 1);
 	sema_init(&rd_mtx, 1);
 
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	bt_state_notify(ON);
-#endif
 	bt_dev_dbg_set_state(TRUE);
 
 #if (PM_QOS_CONTROL == 1)
@@ -670,9 +664,6 @@ static int BT_close(struct inode *inode, struct file *file)
 
 	bt_fb_notify_unregister();
 	bt_dev_dbg_set_state(FALSE);
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	bt_state_notify(OFF);
-#endif
 
 	rstflag = 0;
 	bt_ftrace_flag = 0;
@@ -760,10 +751,6 @@ static int BT_init(void)
 #endif
 
 	BT_LOG_PRT_INFO("%s driver(major %d) installed\n", BT_DRIVER_NAME, BT_major);
-
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	fw_log_bt_init();
-#endif
 	bt_dev_dbg_init();
 
 #if (PM_QOS_CONTROL == 1)
@@ -802,9 +789,6 @@ static void BT_exit(void)
 #endif
 
 	bt_dev_dbg_deinit();
-#ifdef CONFIG_MTK_CONNSYS_DEDICATED_LOG_PATH
-	fw_log_bt_exit();
-#endif
 
 	dev = MKDEV(BT_major, 0);
 	/* Destroy wake lock*/
@@ -827,8 +811,6 @@ static void BT_exit(void)
 	BT_LOG_PRT_INFO("%s driver removed\n", BT_DRIVER_NAME);
 }
 
-#ifdef MTK_WCN_REMOVE_KERNEL_MODULE
-
 int mtk_wcn_stpbt_drv_init(void)
 {
 	return BT_init();
@@ -840,10 +822,3 @@ void mtk_wcn_stpbt_drv_exit(void)
 	return BT_exit();
 }
 EXPORT_SYMBOL(mtk_wcn_stpbt_drv_exit);
-
-#else
-
-module_init(BT_init);
-module_exit(BT_exit);
-
-#endif
