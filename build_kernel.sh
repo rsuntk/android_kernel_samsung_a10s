@@ -81,6 +81,7 @@ fi
 
 DEFAULT_ARGS="
 CONFIG_SECTION_MISMATCH_WARN_ONLY=y
+KCFLAGS=-w
 ARCH=arm64
 "
 IMAGE="$(pwd)/out/arch/arm64/boot/Image"
@@ -103,6 +104,7 @@ fi
 
 export ARCH=arm64
 export CLANG_TRIPLE=aarch64-linux-gnu-
+export KCFLAGS=-w
 
 pr_sum() {
 	if [ -z $KBUILD_BUILD_USER ]; then
