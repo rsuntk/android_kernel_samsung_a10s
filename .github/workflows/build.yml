@@ -30,9 +30,15 @@ jobs:
       run: |
         mkdir toolchains
         cd toolchains
-        mkdir clang-12 && cd clang-12
-        wget -q -O clang12.tar.gz https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/b669748458572622ed716407611633c5415da25c/clang-r416183b.tar.gz
-        tar -xf clang12.tar.gz && rm clang12.tar.gz && cd ..
+        if [[ "${{ github.event.inputs.CLANG_SIXTEEN }}" = "true" ]]; then
+          mkdir clang-16 && cd clang-16
+          wget -q -O clang16.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r475365b.tar.gz
+          tar -xf clang16.tar.gz && rm clang16.tar.gz && cd ..
+        else
+          mkdir clang-12 && cd clang-12
+          wget -q -O clang12.tar.gz https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/b669748458572622ed716407611633c5415da25c/clang-r416183b.tar.gz
+          tar -xf clang12.tar.gz && rm clang12.tar.gz && cd ..
+        fi
         git clone https://gitlab.com/Rissu-Projekt/toolchains/aarch64-linux-android.git --depth=1 google
       working-directory: rissu_kernel_samsung_a10s-r
 
@@ -44,7 +50,11 @@ jobs:
     - name: Build kernel
       id: buildKernel
       run: |
-        export PATH=$(pwd)/toolchains/clang-12/bin:$PATH
+        if [[ "${{ github.event.inputs.CLANG_SIXTEEN }}" = "true" ]]; then
+          export PATH=$(pwd)/toolchains/clang-16/bin:$PATH
+        else
+          export PATH=$(pwd)/toolchains/clang-12/bin:$PATH
+        fi
         
         export CROSS_COMPILE=$(pwd)/toolchains/google/bin/aarch64-linux-android-
         export CLANG_TRIPLE=aarch64-linux-gnu-
