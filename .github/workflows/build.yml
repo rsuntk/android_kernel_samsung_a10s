@@ -9,6 +9,9 @@ on:
       SETUP_KSU:
         description: KernelSU support (optional)
         type: boolean
+      CLANG_SIXTEEN:
+        description: Compile with clang 16
+        type: boolean
         
 jobs:
   build:
