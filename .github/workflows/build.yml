@@ -1,0 +1,105 @@
+name: Build Kernel
+on:
+  workflow_dispatch:
+    inputs:
+      KBUILD_USER:
+        description: Kbuild user
+        default: 'rsuntk'
+        required: true
+      SETUP_KSU:
+        description: KernelSU support (optional)
+        type: boolean
+      CLANG_SIXTEEN:
+        description: Compile with clang 16
+        type: boolean
+        
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        path: rissu_kernel_samsung_a10s-r
+        show-progress: false
+        fetch-depth: 1
+        
+    - name: Prepare dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install bc cpio flex bison aptitude git python-is-python3 tar perl curl lz4 -y
+        sudo aptitude install libssl-dev -y
+        
+    - name: Fetch toolchains
+      run: |
+        mkdir toolchains
+        cd toolchains
+        if [[ "${{ github.event.inputs.CLANG_SIXTEEN }}" = "true" ]]; then
+          mkdir clang-16 && cd clang-16
+          wget -q -O clang16.tar.gz https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android14-release/clang-r475365b.tar.gz
+          tar -xf clang16.tar.gz && rm clang16.tar.gz && cd ..
+        else
+          mkdir clang-12 && cd clang-12
+          wget -q -O clang12.tar.gz https://android.googlesource.com/platform//prebuilts/clang/host/linux-x86/+archive/b669748458572622ed716407611633c5415da25c/clang-r416183b.tar.gz
+          tar -xf clang12.tar.gz && rm clang12.tar.gz && cd ..
+        fi
+        git clone https://gitlab.com/Rissu-Projekt/toolchains/aarch64-linux-android.git --depth=1 google
+      working-directory: rissu_kernel_samsung_a10s-r
+
+    - name: Prepare timezone fix
+      run: |
+        sudo rm /etc/localtime
+        sudo ln -s /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+          
+    - name: Build kernel
+      id: buildKernel
+      run: |
+        if [[ "${{ github.event.inputs.CLANG_SIXTEEN }}" = "true" ]]; then
+          export PATH=$(pwd)/toolchains/clang-16/bin:$PATH
+        else
+          export PATH=$(pwd)/toolchains/clang-12/bin:$PATH
+        fi
+        
+        export CROSS_COMPILE=$(pwd)/toolchains/google/bin/aarch64-linux-android-
+        export CLANG_TRIPLE=aarch64-linux-gnu-
+        export DEFCONFIG="rsuntk_defconfig"
+        export KBUILD_BUILD_HOST="rsuntk_orgs"
+        export KBUILD_BUILD_USER="${{ github.event.inputs.KBUILD_USER }}"
+        export BUILD_START=$(date)
+        export IS_CI=true
+        export LLVM=1
+        export LLVM_IAS=1
+        
+        if [[ "${{ github.event.inputs.SETUP_KSU }}" = "true" ]]; then 
+          export KERNELSU=true
+        fi
+        
+        bash $(pwd)/build_kernel.sh kernel --jobs $(nproc --all) rsuntk_defconfig
+        
+        echo ""
+        echo "===================================================="
+        strings out/arch/arm64/boot/Image | grep "Linux version"
+        echo "===================================================="
+        mv out/.config out/build_config.txt
+        gitsha1=$(git rev-parse --short HEAD)
+        buildDetails="`make kernelversion`_`echo $gitsha1`-`date +'%Y%m%d%H%M%S'`" && echo "buildDetails=$buildDetails" >> $GITHUB_OUTPUT
+      working-directory: rissu_kernel_samsung_a10s-r
+      
+    - name: Upload config
+      uses: actions/upload-artifact@v4
+      with:
+        name: Config-${{ steps.buildKernel.outputs.buildDetails }}
+        path: rissu_kernel_samsung_a10s-r/out/build_config.txt
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: Build-${{ steps.buildKernel.outputs.buildDetails }}
+        path: |
+          rissu_kernel_samsung_a10s-r/out/arch/arm64/boot/*
+          
+    - name: Upload AnyKernel3
+      uses: actions/upload-artifact@v4
+      with:
+        name: AnyKernel3-${{ steps.buildKernel.outputs.buildDetails }}
+        path: rissu_kernel_samsung_a10s-r/AnyKernel3/*
+        compression-level: 9
