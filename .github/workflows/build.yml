@@ -67,6 +67,7 @@ jobs:
         export BUILD_START=$(date)
         export IS_CI=true
         export LLVM=1
+        export LLVM_IAS=1
         
         if [[ "${{ github.event.inputs.SETUP_KSU }}" = "true" ]]; then 
           export KERNELSU=true
