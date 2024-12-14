@@ -293,6 +293,14 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 			if (niceval > retval)
 				retval = niceval;
 		}
+#ifdef CONFIG_MTK_ENG_BUILD
+		if (retval == -ESRCH && current->pid == who) {
+			pr_warn("getpriority return unexpected value who:%d "
+				"current:%d niceval:%d retvale:%d", who,
+				current->pid, niceval, retval);
+			BUG();
+		}
+#endif
 		break;
 	case PRIO_PGRP:
 		if (who)
@@ -1240,16 +1248,28 @@ static int override_release(char __user *release, size_t len)
 	return ret;
 }
 
+#ifdef CONFIG_UTSNAME_SPOOF
+// commit 25db024
+static uint64_t netbpfload_pid = 0;
+#endif
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	struct new_utsname tmp;
 
 	down_read(&uts_sem);
 	memcpy(&tmp, utsname(), sizeof(tmp));
+#ifdef CONFIG_UTSNAME_SPOOF	
+	if (!strncmp(current->comm, "netbpfload", 10) &&
+		current->pid != netbpfload_pid) {
+			netbpfload_pid = current->pid;
+			strcpy(tmp.release, "6.6.40");
+			pr_debug("fake_uname: %s/%d release=%s\n",
+				current->comm, current->pid, tmp.release);
+	}
+#endif /* CONFIG_UTSNAME_SPOOF */	
 	up_read(&uts_sem);
 	if (copy_to_user(name, &tmp, sizeof(tmp)))
 		return -EFAULT;
-
 	if (override_release(name->release, sizeof(name->release)))
 		return -EFAULT;
 	if (override_architecture(name))
