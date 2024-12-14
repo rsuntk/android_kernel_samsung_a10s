@@ -9,6 +9,7 @@
  */
 
 #include <crypto/skcipher.h>
+#include <crypto/sha.h>
 #include <linux/key.h>
 
 #include "fscrypt_private.h"
@@ -161,6 +162,7 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 				  struct fscrypt_prepared_key *keys,
 				  u8 hkdf_context, bool include_fs_uuid)
 {
+	static DEFINE_MUTEX(mode_key_setup_mutex);
 	const struct inode *inode = ci->ci_inode;
 	const struct super_block *sb = inode->i_sb;
 	struct fscrypt_mode *mode = ci->ci_mode;
@@ -229,7 +231,6 @@ static int setup_per_mode_enc_key(struct fscrypt_info *ci,
 	}
 done_unlock:
 	ci->ci_key = *prep_key;
-
 	err = 0;
 out_unlock:
 	mutex_unlock(&fscrypt_mode_key_setup_mutex);
@@ -496,6 +497,63 @@ static void put_crypt_info(struct fscrypt_info *ci)
 	kmem_cache_free(fscrypt_info_cachep, ci);
 }
 
+static struct crypto_shash *essiv_hash_tfm;
+static int derive_essiv_salt(const u8 *key, int keysize, u8 *salt)
+{
+	struct crypto_shash *tfm = READ_ONCE(essiv_hash_tfm);
+
+	/* init hash transform on demand */
+	if (unlikely(!tfm)) {
+		struct crypto_shash *prev_tfm;
+
+		tfm = crypto_alloc_shash("sha256", 0, 0);
+		if (IS_ERR(tfm)) {
+			fscrypt_warn(NULL,
+				     "error allocating SHA-256 transform: %ld",
+				     PTR_ERR(tfm));
+			return PTR_ERR(tfm);
+		}
+		prev_tfm = cmpxchg(&essiv_hash_tfm, NULL, tfm);
+		if (prev_tfm) {
+			crypto_free_shash(tfm);
+			tfm = prev_tfm;
+		}
+	}
+
+	{
+		SHASH_DESC_ON_STACK(desc, tfm);
+
+		desc->tfm = tfm;
+		desc->flags = 0;
+
+		return crypto_shash_digest(desc, key, keysize, salt);
+	}
+}
+
+static int init_crypt_info_for_hie(const struct inode *inode,
+						struct fscrypt_info *ci, struct key *key)
+{
+	int err;
+	const unsigned int raw_key_size = ci->ci_mode->keysize;
+	struct fscrypt_master_key *mk = key->payload.data[0];
+	const u8 *raw_key = mk->mk_secret.raw;
+	union {
+			siphash_key_t k;
+			u8 bytes[SHA256_DIGEST_SIZE];
+		} ino_hash_key;
+
+	/* hashed_ino = SipHash(key=SHA256(master_key), data=i_ino) */
+	err = derive_essiv_salt(raw_key, raw_key_size,
+			ino_hash_key.bytes);
+
+	if (err)
+		return err;
+
+	ci->ci_hashed_info = siphash_1u64(inode->i_ino, &ino_hash_key.k);
+
+	return 0;
+}
+
 int fscrypt_get_encryption_info(struct inode *inode)
 {
 	struct fscrypt_info *crypt_info;
@@ -513,18 +571,21 @@ int fscrypt_get_encryption_info(struct inode *inode)
 
 	res = inode->i_sb->s_cop->get_context(inode, &ctx, sizeof(ctx));
 	if (res < 0) {
-		const union fscrypt_context *dummy_ctx =
-			fscrypt_get_dummy_context(inode->i_sb);
-
-		if (IS_ENCRYPTED(inode) || !dummy_ctx) {
+		if (!fscrypt_dummy_context_enabled(inode) ||
+		    IS_ENCRYPTED(inode)) {
 			fscrypt_warn(inode,
 				     "Error %d getting encryption context",
 				     res);
 			return res;
 		}
 		/* Fake up a context for an unencrypted directory */
-		res = fscrypt_context_size(dummy_ctx);
-		memcpy(&ctx, dummy_ctx, res);
+		memset(&ctx, 0, sizeof(ctx));
+		ctx.version = FSCRYPT_CONTEXT_V1;
+		ctx.v1.contents_encryption_mode = FSCRYPT_MODE_AES_256_XTS;
+		ctx.v1.filenames_encryption_mode = FSCRYPT_MODE_AES_256_CTS;
+		memset(ctx.v1.master_key_descriptor, 0x42,
+		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
+		res = sizeof(ctx.v1);
 	}
 
 	crypt_info = kmem_cache_zalloc(fscrypt_info_cachep, GFP_NOFS);
@@ -560,6 +621,17 @@ int fscrypt_get_encryption_info(struct inode *inode)
 	if (res)
 		goto out;
 
+	/* eMMC + F2FS security fix OTA only */
+	if (S_ISREG(crypt_info->ci_inode->i_mode) &&
+		(crypt_info->ci_policy.version == FSCRYPT_POLICY_V1) &&
+		crypt_info->ci_policy.v1.contents_encryption_mode == 1) {
+		if (crypt_info->ci_policy.v1.flags & FSCRYPT_POLICY_FLAG_IV_INO_LBLK_32) {
+			res = init_crypt_info_for_hie(inode, crypt_info, key_get(master_key));
+			if (res)
+				goto out;
+		}
+	}
+
 	if (cmpxchg_release(&inode->i_crypt_info, NULL, crypt_info) == NULL) {
 		if (master_key) {
 			struct fscrypt_master_key *mk =
@@ -590,8 +662,7 @@ out:
 EXPORT_SYMBOL(fscrypt_get_encryption_info);
 
 /**
- * fscrypt_put_encryption_info() - free most of an inode's fscrypt data
- * @inode: an inode being evicted
+ * fscrypt_put_encryption_info - free most of an inode's fscrypt data
  *
  * Free the inode's fscrypt_info.  Filesystems must call this when the inode is
  * being evicted.  An RCU grace period need not have elapsed yet.
@@ -604,8 +675,7 @@ void fscrypt_put_encryption_info(struct inode *inode)
 EXPORT_SYMBOL(fscrypt_put_encryption_info);
 
 /**
- * fscrypt_free_inode() - free an inode's fscrypt data requiring RCU delay
- * @inode: an inode being freed
+ * fscrypt_free_inode - free an inode's fscrypt data requiring RCU delay
  *
  * Free the inode's cached decrypted symlink target, if any.  Filesystems must
  * call this after an RCU grace period, just before they free the inode.
@@ -620,8 +690,7 @@ void fscrypt_free_inode(struct inode *inode)
 EXPORT_SYMBOL(fscrypt_free_inode);
 
 /**
- * fscrypt_drop_inode() - check whether the inode's master key has been removed
- * @inode: an inode being considered for eviction
+ * fscrypt_drop_inode - check whether the inode's master key has been removed
  *
  * Filesystems supporting fscrypt must call this from their ->drop_inode()
  * method so that encrypted inodes are evicted as soon as they're no longer in
