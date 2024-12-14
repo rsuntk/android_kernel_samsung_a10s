@@ -9,6 +9,7 @@
 # conmakehash:	 Create arrays for initializing the kernel console tables
 
 HOST_EXTRACFLAGS += -I$(srctree)/tools/include
+HOST_EXTRACFLAGS += -Wno-deprecated-declarations
 
 hostprogs-$(CONFIG_BUILD_BIN2C)  += bin2c
 hostprogs-$(CONFIG_KALLSYMS)     += kallsyms
