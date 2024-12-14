@@ -30,3 +30,13 @@ source "crypto/Kconfig"
 source "lib/Kconfig"
 
 source "lib/Kconfig.debug"
+
+# Rissu changes on 30 August 2024
+menu "Utsname spoof"
+config UTSNAME_SPOOF
+	bool "Spoof Utsname for netbpfload"
+	default n
+	help
+		"On Android 14, 4.19 have some problem with the
+		bpf (berkeley packet filter)"
+endmenu
