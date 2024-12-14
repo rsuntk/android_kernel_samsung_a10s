@@ -93,7 +93,8 @@ EXPORT_SYMBOL_GPL(hid_register_report);
  * Register a new field for this report.
  */
 
-static struct hid_field *hid_register_field(struct hid_report *report, unsigned usages, unsigned values)
+static struct hid_field *hid_register_field(struct hid_report *report,
+					    unsigned int usages)
 {
 	struct hid_field *field;
 
@@ -104,7 +105,7 @@ static struct hid_field *hid_register_field(struct hid_report *report, unsigned 
 
 	field = kzalloc((sizeof(struct hid_field) +
 			 usages * sizeof(struct hid_usage) +
-			 values * sizeof(unsigned)), GFP_KERNEL);
+			 usages * sizeof(unsigned int)), GFP_KERNEL);
 	if (!field)
 		return NULL;
 
@@ -300,7 +301,7 @@ static int hid_add_field(struct hid_parser *parser, unsigned report_type, unsign
 	usages = max_t(unsigned, parser->local.usage_index,
 				 parser->global.report_count);
 
-	field = hid_register_field(report, usages, parser->global.report_count);
+	field = hid_register_field(report, usages);
 	if (!field)
 		return 0;
 
@@ -509,6 +510,9 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			return 0;
 		}
 
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
+
 		return hid_add_usage(parser, data, item->size);
 
 	case HID_LOCAL_ITEM_TAG_USAGE_MINIMUM:
@@ -517,6 +521,9 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			dbg_hid("alternative usage ignored\n");
 			return 0;
 		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
 
 		parser->local.usage_minimum = data;
 		return 0;
@@ -527,6 +534,9 @@ static int hid_parser_local(struct hid_parser *parser, struct hid_item *item)
 			dbg_hid("alternative usage ignored\n");
 			return 0;
 		}
+
+		if (item->size <= 2)
+			data = (parser->global.usage_page << 16) + data;
 
 		count = data - parser->local.usage_minimum;
 		if (count + parser->local.usage_index >= HID_MAX_USAGES) {
